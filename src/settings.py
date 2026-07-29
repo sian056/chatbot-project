@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     ollama_model: str = "gemma4:e2b-mlx"
     ollama_base_url: str = "http://localhost:11434"
 
+    naver_client_id: str
+    naver_client_secret: str
     
     # ── Embedding Provider 선택 ──
     embedding_provider: Literal["hugging", "google"]

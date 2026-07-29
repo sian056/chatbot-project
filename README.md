@@ -83,7 +83,7 @@ uv run -m src.dataset.vector_store
 
 1. FastAPI 
 ```
-uvicorn main:app ← 스웨거 문서로 확인 http://localhost:8000/docs
+uv run uvicorn main:app ← 스웨거 문서로 확인 http://localhost:8000/docs
 ```
 
 2. FastAPI 없이 단일 쿼리 테스트 또는 LangSmith 평가 테스트

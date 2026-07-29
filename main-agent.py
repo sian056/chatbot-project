@@ -25,7 +25,7 @@ class QueryResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   # FastAPI 앱 초기화 시점에 인덱싱 + RAG 그래프 구성
-  app.state.graph = build_rag_graph()
+  app.state.graph = build_agent_graph()
   yield
 
 # FastAPI 앱 인스턴스를 생성하면서 lifespan 함수를 등록
@@ -35,7 +35,8 @@ app = FastAPI(lifespan=lifespan)
 def query(req: QueryRequest):
   thread_id = req.thread_id or str(uuid.uuid4())  # 랜덤 UUID 생성
   result = app.state.graph.invoke(
-    {"messages": [HumanMessage(content=req.question)]},
+    {"query": req.question,
+     "messages": [HumanMessage(content=req.question)]},
     config = {"configurable": {"thread_id": thread_id}}
   )
   answer = result["messages"][-1].content # 응답이 메시지 이력의 맨 뒤에 append 되어 있기 때문에 [-1]로 가져옴

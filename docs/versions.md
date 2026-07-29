@@ -6,8 +6,7 @@
 |260708|pdf 파일 로더 추가 |data_loader.py|
 |260712|pdf 페이지 전처리, 출처 페이지 표시 추가 |data_loader.py, graph.py|
 |260712|초기 인덱싱 분리|vector_store.py|
-
-
+|260727|supervisor-agent 구조: 2개 agent구성|agents/|
 
 ## 로드맵
 ### 현재의 주제로 할 수 있는 일
@@ -54,12 +53,14 @@ Supervisor (Agent Node)
 ### 단계별 구현
 |단계|목표|달성|
 |:---:|---|:---:|
-|버전 1|하나의 그래프인 RAG|✅|
-|버전 2|Retriever Graph 를 React pattern 적용하여 Tool을 이용해 검색 정확도 높이기||
-|버전 3|Retriever Graph를 하나의 Agent로||
-|버전 4|Multi-Agent : Agent 추가||
+|Ver.1|하나의 그래프인 RAG 시스템|✅|
+|Ver.2|Retriever Graph 를 React pattern 적용하여 Tool을 이용해 검색 정확도 높이기||
+|Ver.3|Retriever Graph를 하나의 Agent로||
+|Ver.4|Multi-Agent : Agent 추가||
 
-#### 버전 1
+
+---
+### Ver.1 하나의 그래프인 RAG 시스템
 ```mermaid
 ---
 config:
@@ -78,9 +79,159 @@ graph TD;
         classDef first fill-opacity:0
         classDef last fill:#bfb6fc
 ```
-##### 고민1
-> 검색 정확도 향상을 위해 Retrieve와 
+---
+### Ver.3 Retriever Graph를 하나의 Agent로, Supervisor 추가
+`prepare_query` : 전문 agent에서 쿼리를 사용하기 위해 유저의 질문을 저장해두고 넘겨줌.
 
-### 가장 어려운 지점
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+        __start__([<p>__start__</p>]):::first
+        prepare_query(prepare_query)
+        supervisor(supervisor)
+        rag_agent(rag_agent)
+        __end__([<p>__end__</p>]):::last
+        __start__ --> prepare_query;
+        prepare_query --> supervisor;
+        rag_agent -.-> supervisor;
+        supervisor -.-> __end__;
+        supervisor -.-> rag_agent;
+
+        rag_agent -.-> rag_agent_sub;
+
+    
+    subgraph rag_agent_sub["rag_agent (서브그래프)"]
+        direction TB
+        r_start([__start__]):::first
+        retrieve(retrieve)
+        generate(generate)
+        r_end([__end__]):::last
+        r_start --> retrieve;
+        retrieve --> generate;
+        generate --> r_end;
+    end
+
+        classDef default fill:#f2f0ff,line-height:1.2
+        classDef first fill-opacity:0
+        classDef last fill:#bfb6fc
+```
+
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+    __start__([<p>__start__</p>]):::first
+    prepare_query(prepare_query)
+    supervisor(supervisor)
+    
+    subgraph rag_agent_sub["rag_agent (서브그래프)"]
+        direction TB
+        r_start([__start__]):::first
+        retrieve(retrieve)
+        generate(generate)
+        r_end([__end__]):::last
+        r_start --> retrieve;
+        retrieve --> generate;
+        generate --> r_end;
+    end
+
+    __end__([<p>__end__</p>]):::last
+
+    __start__ --> prepare_query;
+    prepare_query --> supervisor;
+    supervisor -- "next: rag_agent" --> rag_agent_sub;
+    rag_agent_sub -- "Command(goto=supervisor)" --> supervisor;
+    supervisor -- "next: FINISH" --> __end__;
+
+    classDef default fill:#f2f0ff,line-height:1.2
+    classDef first fill-opacity:0
+    classDef last fill:#bfb6fc
+```
+---
+### Ver.4 Multi-Agent : rag agent, news agent
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+        __start__([<p>__start__</p>]):::first
+        prepare_query(prepare_query)
+        supervisor(supervisor)
+        rag_agent(rag_agent)
+        news_agent(news_agent)
+        __end__([<p>__end__</p>]):::last
+        __start__ --> prepare_query;
+        news_agent -.-> supervisor;
+        prepare_query --> supervisor;
+        rag_agent -.-> supervisor;
+        supervisor -.-> __end__;
+        supervisor -.-> news_agent;
+        supervisor -.-> rag_agent;
+
+        rag_agent -.-> rag_agent_sub;
+        news_agent -.-> news_agent_sub;
+
+    
+    subgraph rag_agent_sub["rag_agent (서브그래프)"]
+        direction TB
+        r_start([__start__]):::first
+        retrieve(retrieve)
+        generate(generate)
+        r_end([__end__]):::last
+        r_start --> retrieve;
+        retrieve --> generate;
+        generate --> r_end;
+    end
+
+    subgraph news_agent_sub["news_agent (서브그래프)"]
+        direction TB
+        n_start([__start__]):::first
+        search_news(search_news)
+        summarize(summarize)
+        n_end([__end__]):::last
+        n_start --> search_news;
+        search_news --> summarize;
+        summarize --> n_end;
+    end
+
+
+        classDef default fill:#f2f0ff,line-height:1.2
+        classDef first fill-opacity:0
+        classDef last fill:#bfb6fc
+```
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+        __start__([<p>__start__</p>]):::first
+        search_news(search_news)
+        summarize(summarize)
+        __end__([<p>__end__</p>]):::last
+        __start__ --> search_news;
+        search_news --> summarize;
+        summarize --> __end__;
+        classDef default fill:#f2f0ff,line-height:1.2
+        classDef first fill-opacity:0
+        classDef last fill:#bfb6fc
+```
+
+#### 고민1
+> 검색 정확도 향상을 위해 Retrieve와 리랭킹?
+
+### 어려운 점
 수식 로드 &rarr; 금융 계산과 관련 있음
 

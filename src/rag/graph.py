@@ -33,11 +33,6 @@ def build_rag_graph():
     retriever = build_retriever(vector_store)
     
     llm = build_llm()
-    
-    if settings.llm_provider == "ollama":
-        prompt = SYSTEM_PROMPT_LOCAL
-    else:
-        prompt = SYSTEM_PROMPT
 
     def format_docs(docs):# 여러 개의 Document 객체를 하나의 긴 문자열로 합친다.
         return "\n\n".join(doc.page_content for doc in docs)    # 서로 다른 문서에서 온 내용임을 표시하기 위해 \n\n 사용
@@ -64,6 +59,11 @@ def build_rag_graph():
         return {"context": retriever.invoke(question)}  #검색 결과(Document 리스트)를 context에 담아서 반환한다.
 
     def generate(state: State):
+        if settings.llm_provider == "ollama":
+            prompt = SYSTEM_PROMPT_LOCAL
+        else:
+            prompt = SYSTEM_PROMPT
+            
         docs = state["context"]
         #검색된 문서들을 하나의 문자열로 합쳐서(format_docs), 시스템 프롬프트의 {context}로 끼워넣는다.
         system_message = SystemMessage( # SystemMessage : 모델의 행동 방식, 페르소나, 규칙을 지정한다. 대화 전체에 일관되게 적용할 지시를 넣는다.
@@ -72,6 +72,7 @@ def build_rag_graph():
         # 시스템 메시지 + 전체 대화 이력을 LLM에 넣어 응답 생성. (멀티턴 대화 맥락 유지)
         # 전체 대화 이력: 리스트 그대로가 아닌 리스트 안의 요소들을 하나씩 풀어서 넣는다 (unpacking) # [system_message, HumanMessage("질문1"), AIMessage("답변1"), HumanMessage("질문2")]
         response = llm.invoke([system_message, *state["messages"]])
+        # 전체 대화 이력이 필요한가?
 
         # 어떤 응답이든 str로 변환하기, llm provider에 구애받지 않고 content를 일관된 문자열로 통일
         response_text = extract_text(response.content)

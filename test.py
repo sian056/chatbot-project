@@ -8,7 +8,7 @@ buffer=[]
 
 def main():
     parser = argparse.ArgumentParser(description="LangChain")
-    parser.add_argument('--mode', choices=['smith', 'chain', 'graph'], help='Choose mode: LangChain, LangGraph, LangSmith')
+    parser.add_argument('--mode', choices=['smith', 'chain', 'graph', 'multi'], help='Choose mode: LangChain, LangGraph, LangSmith, Multi-Agent')
     args = parser.parse_args()
 
     print("Hello from rag-project!")
@@ -39,7 +39,10 @@ def main():
             
         elif args.mode == "graph":
             from src.rag.graph import build_rag_graph
-            config = {"configurable": {"thread_id":"memory-user-001"}}
+            config = {
+                "configurable": {"thread_id":"memory-user-001"},
+                "recursion_limit": 25,
+            }
             graph = build_rag_graph()
 
             # 답변 한 번에 invoke
@@ -75,6 +78,26 @@ def main():
             # print(mermaid_text)
 
             #graph_view.print_ascii()
+        elif args.mode == "multi":
+            from src.rag.multi_agent_graph import build_multi_agent_graph
+            from src.agents.rag_agent import build_rag_subgraph
+            from src.agents.news_agent import build_news_subgraph
+
+            graph = build_multi_agent_graph()
+            #graph visualize
+            graph_view = graph.get_graph()
+            mermaid_text = graph_view.draw_mermaid()
+            print(mermaid_text)
+
+            rag_subgraph = build_rag_subgraph()
+            rag_subgraph_view = rag_subgraph.get_graph()
+            mermaid_text2 = rag_subgraph_view.draw_mermaid()
+            print(mermaid_text2)
+
+            news_subgraph = build_news_subgraph()
+            news_subgraph_view = news_subgraph.get_graph()
+            mermaid_text3 = news_subgraph_view.draw_mermaid()
+            print(mermaid_text3)
     
 if __name__ == "__main__":
     main()

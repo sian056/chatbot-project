@@ -1,0 +1,51 @@
+from langgraph.graph import StateGraph, START
+from langgraph.checkpoint.memory import MemorySaver
+
+from src.agents.supervisor import SupervisorState, supervisor
+from src.agents.rag_agent import rag_agent
+from src.agents.news_agent import news_agent
+from src.model import build_llm
+
+QUERY_SYSTEM_PROMPT = (
+    "당신은 대화 이력을 참고하여 사용자의 가장 최근 메시지를"
+    "'그 자체만으로도 의미가 통하는 독립적인 질문'으로 다시 작성하는 역할을 합니다.\n"
+    "규칙:\n"
+    "- 이미 그 자체로 독립적인 질문이면 그대로 반환하세요."
+    "- 대화 이력에 있는 대명사, 생략된 주어/목적어를 명시적으로 채워 넣으세요.\n"
+    "(예시: '그거 반댓말은?' -> '인플레이션의 반댓말인 디플레이션이란 무엇인가?')"
+    "- 질문의 의도를 바꾸지 말고, 검색에 사용하기 좋은 형태로만 다듬으세요."
+)
+def prepare_query(state:SupervisorState) -> dict:
+    latest_user_message = state["message"][-1].content
+
+    # 마지막 메시지 제외 이전 대화 이력을 프롬프트에 포함
+    history = state["message"][:-1]
+
+    # system_message= SystemMessage(
+    #     content=QUERY_SYSTEM_PROMPT
+    # )
+
+    rewrite_prompt = [
+        {"role": "system", "content":QUERY_SYSTEM_PROMPT},
+        *history,
+        {"role": "user", "content": f"다시 써야 할 최근 메시지: {latest_user_message}"}
+    ]
+
+    rewrite_llm = build_llm()
+    rewritten = rewrite_llm.invoke(rewrite_prompt)
+
+    return {"current_turn_query": rewritten.content}
+
+def build_multi_agent_graph():
+    builder = StateGraph(SupervisorState)
+
+    builder.add_node("prepare_query", prepare_query)
+    builder.add_node("supervisor", supervisor)
+    builder.add_node("rag_agent", rag_agent)
+    builder.add_node("news_agent", news_agent)
+
+    # 그래프 진입점
+    builder.add_edge(START, "prepare_query")
+    builder.add_edge("prepare_query", "supervisor")
+
+    return builder.compile(checkpointer=MemorySaver())
