@@ -27,30 +27,6 @@ def prepare_query(state:SupervisorState) -> dict:
 
     return {"query": latest_user_message, "rag_agent_calls": 0, "news_agent_calls":0}
 
-def rewrite_query(state:SupervisorState) -> dict:
-    st_time = time.time()
-    latest_user_message = state["messages"][-1].content
-
-    # 마지막 메시지 제외 이전 대화 이력을 프롬프트에 포함
-    history = state["messages"][:-1]
-
-    # system_message= SystemMessage(
-    #     content=QUERY_SYSTEM_PROMPT
-    # )
-
-    rewrite_prompt = [
-        {"role": "system", "content":QUERY_SYSTEM_PROMPT},
-        *history,
-        {"role": "user", "content": f"다시 써야 할 최근 메시지: {latest_user_message}"}
-    ]
-
-    rewritten = rewrite_llm.invoke(rewrite_prompt)
-    print(f"\n[PREPARE QUERY] Rewritten query: {rewritten.content}")
-
-    cost_time = str(datetime.timedelta(seconds=time.time()-st_time))
-    print(f"[TIME] Prepare_query : {cost_time}\n")
-    return {"current_turn_query": rewritten.content}
-
 
 def build_multi_agent_graph():
     builder = StateGraph(SupervisorState)
