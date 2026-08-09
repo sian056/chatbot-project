@@ -40,11 +40,11 @@ def preprocess_pdf(docs):
         docs = docs[18:]    #0~17번 문서까지는 목차라서 제거
         docs = docs[:-5]    #마지막 다섯개 문서 제거
         
-        for idx, doc in enumerate(docs):
-        # 기존 페이지 저장해두기
-            doc.metadata["source_page"] = doc.metadata["page"]+1 # 0부터 시작되기 때문에 pdf viewer에 표시되는 것과 같게 1부터 시작되게 바꿈
-        # 페이지 번호 다시 매기기
-            doc.metadata["page"] = idx+1
+        # for idx, doc in enumerate(docs):
+        # # 기존 페이지 저장해두기
+        #     doc.metadata["source_page"] = doc.metadata["page"]+1 # 0부터 시작되기 때문에 pdf viewer에 표시되는 것과 같게 1부터 시작되게 바꿈
+        # # 페이지 번호 다시 매기기
+        #     doc.metadata["page"] = idx+1
 
     print(f"[INFO] [AFTER PDF PREPROCESSING] ... Number of Documents : {len(docs)}")
     return docs
@@ -52,7 +52,7 @@ def preprocess_pdf(docs):
 def load_pdf():
     from langchain_community.document_loaders import PyPDFLoader
     if not os.path.exists(settings.pdf_path):
-        urllib.request.urlretrieve("https://github.com/chatgpt-kr/openai-api-tutorial/raw/main/ch07/2020_%EA%B2%BD%EC%A0%9C%EA%B8%88%EC%9C%B5%EC%9A%A9%EC%96%B4%20700%EC%84%A0_%EA%B2%8C%EC%8B%9C.pdf", filename=settings.pdf_path)
+        urllib.request.urlretrieve("https://raw.githubusercontent.com/sian35/chatbot-project/main/2026_%EA%B2%BD%EC%A0%9C%EA%B8%88%EC%9C%B5%EC%9A%A9%EC%96%B4_800%EC%84%A0.pdf", filename=settings.pdf_path)
         print(f"[INFO] Successfully downloaded {settings.pdf_path}")
 
     pdf_loader = PyPDFLoader(settings.pdf_path)
@@ -66,6 +66,8 @@ def load_pdf():
         docs = preprocess_pdf(docs)
 
     return docs
+
+# =================================================================
 
 def renumber_pages(docs):
     # docs.pages : 페이지 라는 단위 자체에 대한 메타정보를 담는 별도의 레지스트리 

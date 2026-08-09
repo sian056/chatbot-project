@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # indexing 관련 설정
     #doc_source: Literal["github", "dir", "pdf"]
     doc_source: str = "pdf"
-    pdf_name: str = "2026_경제금융용어_800선.pdf" #"2026_경제금융용어_short.pdf" "2026_경제금융용어_short.pdf"
+    pdf_name: str = "2026_경제금융용어_800선.pdf"
     pdf_path: str = str(BASE_DIR / pdf_name)
 
     # vector DB

@@ -669,9 +669,9 @@
         a.rel = "noopener noreferrer";
         a.textContent = item.title || item.url;
         li.appendChild(a);
-      } else if (item.page !== undefined) {
+      } else if (item.page_label !== undefined) {
         // rag_agent, 페이지 번호가 있는 출처 (PDF 등 문서 근거)
-        li.textContent = `${item.page} 페이지`;
+        li.textContent = `${item.page_label} 페이지`;
       } else if (item.title) {
         li.textContent = item.title;
       }

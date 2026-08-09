@@ -165,9 +165,11 @@ def generate(state: RagState) -> dict:
 
     # 출처 출력을 위해
     page_sources_stream = sorted(set(
-        doc.metadata.get("page", "unknown") for doc in docs
+        doc.metadata.get("page_label", "unknown") for doc in docs
     ))
-    page_src_stream = [{"page": p} for p in page_sources_stream]
+    print(f"[DEBUG] page_sources_stream = {page_sources_stream}")
+
+    page_src_stream = [{"page_label": p} for p in page_sources_stream]
 
     cost_time = format_elapsed(st_time)
     print(f"\n[TIME][RAG][GENERATE] {cost_time}\n")
