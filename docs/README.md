@@ -8,11 +8,11 @@
 |260707|[Questions](questions.md)||
 
 
-## Weekly Retrospect
-| week | 과제 | 회고 |
-|:---:|---|:---:|
-|5| 다음 단어를 생성하는 Transformer Model을 이용해 챗봇을 구현한다.|[회고]()|
-|6| 개인 프로젝트의 바닐라 RAG 시스템을 구현한다. |[회고]()|
-|7| 개인 프로젝트의 RAG 시스템을 LangChain 기반으로 구현한다.|[회고](week7-retro.md)|
-|8| 개인 프로젝트의 RAG 시스템을 LangGraph 기반으로 구현한다.|[회고](week8-retro.md)|
-|9| |[회고](week9-retro.md)|
+## Weekly Challenge Retrospect
+| week | 과제 | 진행 | 회고 |
+|:---:|---|:---:|:---:|
+|5| 다음 단어를 생성하는 Transformer Model을 이용해 챗봇을 구현한다.|✅|[회고]()|
+|6| 개인 프로젝트의 바닐라 RAG 시스템을 구현한다. |✅|[회고]()|
+|7| 개인 프로젝트의 RAG 시스템을 LangChain 기반으로 구현한다.|✅|[회고](./docs/week7-retro.md)|
+|8| 개인 프로젝트의 RAG 시스템을 LangGraph 기반으로 구현한다.|✅|[회고](./docs/week8-retro.md)|
+|9| 개인 프로젝트에 멀티 Agent를 적용한다.|✅|[회고](./docs/week9-retro.md)|

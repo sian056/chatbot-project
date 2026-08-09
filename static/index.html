@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Econ Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+  rel="stylesheet"
+/>
+<!-- marked.js: 마크다운 -> HTML 변환 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<!-- KaTeX: LaTeX 수식 렌더링 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<!-- DOMPurify: LLM이 만든 HTML을 innerHTML에 넣기 전 정제 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #10141b;
+    --panel: #161b23;
+    --panel-2: #1b212b;
+    --border: #262d38;
+    --text: #e8eaed;
+    --text-muted: #8993a3;
+    --accent: #c9a227;
+    --accent-soft: rgba(201, 162, 39, 0.14);
+    --user-bubble: #232b38;
+    --error: #d1685f;
+    --error-soft: rgba(209, 104, 95, 0.12);
+    --radius: 10px;
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "Inter", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 720px;
+    margin: 0 auto;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+
+  /* ---------- 헤더 ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+
+  .brand-mark {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--accent);
+  }
+
+  .brand h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+
+  .session-tag {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .status-dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  /* ---------- 대화 영역 ---------- */
+  .thread {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .empty-state {
+    margin: auto 0;
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  .empty-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  .empty-body {
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+    max-width: 320px;
+    margin-inline: auto;
+  }
+
+  .msg { display: flex; max-width: 100%; }
+
+  .msg-user { justify-content: flex-end; }
+  .msg-assistant, .msg-error { justify-content: flex-start; align-items: flex-start; gap: 10px; }
+
+  .msg-time {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+    padding-top: 11px;
+    flex-shrink: 0;
+    width: 52px;
+    text-align: right;
+  }
+
+  .msg-bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14.5px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .msg-user .msg-bubble {
+    background: var(--user-bubble);
+    border-radius: var(--radius) var(--radius) 4px var(--radius);
+  }
+
+  .msg-assistant .msg-bubble {
+    background: var(--panel-2);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px var(--radius) var(--radius) var(--radius);
+  }
+
+  /* 스트리밍 중 하나의 답변 안에서 여러 에이전트 구간을 구분하는 소제목 */
+  .section-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 6px;
+  }
+
+  .section-label:not(:first-child) {
+    margin-top: 14px;
+  }
+
+  .msg-error .msg-bubble {
+    background: var(--error-soft);
+    border-left: 2px solid var(--error);
+    color: #f0c4c0;
+    border-radius: 4px var(--radius) var(--radius) var(--radius);
+  }
+
+  /* 스트리밍이 끝난 뒤 마크다운+수식으로 재렌더링된 콘텐츠 */
+  .rendered-content {
+    display: inline;
+    white-space: normal;
+  }
+
+  .rendered-content > *:first-child { margin-top: 0; }
+  .rendered-content > *:last-child { margin-bottom: 0; }
+
+  .rendered-content p {
+    margin: 0 0 8px;
+  }
+
+  .rendered-content strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .rendered-content em {
+    color: var(--text);
+  }
+
+  .rendered-content ul,
+  .rendered-content ol {
+    margin: 6px 0;
+    padding-left: 1.3em;
+  }
+
+  .rendered-content li {
+    margin: 3px 0;
+  }
+
+  .rendered-content code {
+    background: var(--panel);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.9em;
+  }
+
+  .rendered-content pre {
+    background: var(--panel);
+    padding: 10px 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+
+  .rendered-content pre code {
+    background: none;
+    padding: 0;
+  }
+
+  .rendered-content a {
+    color: var(--accent);
+  }
+
+  .rendered-content .katex {
+    font-size: 1.02em;
+    color: var(--text);
+  }
+
+  .rendered-content .katex-display {
+    margin: 10px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  /* 출처 목록 - 답변 텍스트와 시각적으로 구분되는 별도 블록 */
+  .sources-block {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .sources-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+  }
+
+  .sources-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sources-list li {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .sources-list a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .sources-list a:hover {
+    text-decoration: underline;
+  }
+
+  /* 로딩 표시 옆에 붙는 상태 라벨 텍스트 ("검색하는 중..." 등) */
+  .loading-label {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* 로딩 표시 */
+  .loading-bubble {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 13px 14px;
+  }
+
+  .loading-bubble .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.35;
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+
+  .loading-bubble .dot:nth-child(2) { animation-delay: 0.15s; }
+  .loading-bubble .dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loading-bubble .dot { animation: none; opacity: 0.6; }
+  }
+
+  /* ---------- 입력창 ---------- */
+  .composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  #input {
+    flex: 1;
+    resize: none;
+    max-height: 160px;
+    min-height: 40px;
+    padding: 10px 13px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  #input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  #input:disabled { opacity: 0.5; }
+
+  #sendBtn {
+    height: 40px;
+    padding: 0 18px;
+    background: var(--accent);
+    color: #10141b;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 13.5px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  #sendBtn:disabled {
+    background: var(--border);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+
+  #sendBtn:not(:disabled):hover { filter: brightness(1.08); }
+
+  #sendBtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">§</span>
+        <h1>Econ Assistant</h1>
+      </div>
+      <div class="session-tag">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="sessionLabel">new session</span>
+      </div>
+    </header>
+
+    <main class="thread" id="thread">
+      <div class="empty-state" id="emptyState">
+        <p class="empty-eyebrow">START A LEDGER</p>
+        <p class="empty-body">경제 용어의 뜻이나 관련 최신 뉴스를 물어보세요.</p>
+      </div>
+    </main>
+
+    <form class="composer" id="composer">
+      <textarea
+        id="input"
+        rows="1"
+        placeholder="질문을 입력하세요..."
+        autocomplete="off"
+      ></textarea>
+      <button type="submit" id="sendBtn">전송</button>
+    </form>
+  </div>
+
+<script>
+  // 백엔드 FastAPI 서버 주소. 배포 환경에 맞게 이 값만 바꾸면 된다.
+  const API_URL = "http://localhost:8000/query/stream";
+
+  const threadEl = document.getElementById("thread");
+  const emptyState = document.getElementById("emptyState");
+  const form = document.getElementById("composer");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("sendBtn");
+  const sessionLabel = document.getElementById("sessionLabel");
+  const statusDot = document.getElementById("statusDot");
+
+  // 페이지를 새로고침하면 이 변수들은 초기화되므로,
+  // 요구하신 대로 "새로고침 = 새 대화"가 자연스럽게 지켜진다.
+  // (별도의 localStorage 저장 로직을 의도적으로 넣지 않았다.)
+  let threadId = null;
+  let isLoading = false;
+
+  function formatTime(date) {
+    return date.toLocaleTimeString("ko-KR", { hour12: false });
+  }
+
+  function appendMessage(role, text) {
+    emptyState?.remove();
+
+    const row = document.createElement("div");
+    row.className = `msg msg-${role}`;
+
+    if (role === "assistant" || role === "error") {
+      const time = document.createElement("span");
+      time.className = "msg-time";
+      time.textContent = formatTime(new Date());
+      row.appendChild(time);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    bubble.textContent = text;
+    row.appendChild(bubble);
+
+    threadEl.appendChild(row);
+    threadEl.scrollTop = threadEl.scrollHeight;
+    return row;
+  }
+
+  function appendLoading() {
+    emptyState?.remove();
+
+    const row = document.createElement("div");
+    row.className = "msg msg-assistant";
+    row.id = "loadingRow";
+    row.innerHTML = `
+      <span class="msg-time">${formatTime(new Date())}</span>
+      <div class="msg-bubble loading-bubble">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="loading-label" id="loadingLabel">생각하는 중...</span>
+      </div>
+    `;
+    threadEl.appendChild(row);
+    threadEl.scrollTop = threadEl.scrollHeight;
+  }
+
+  function updateLoadingLabel(text) {
+    const label = document.getElementById("loadingLabel");
+    if (label) label.textContent = text;
+  }
+
+  function removeLoading() {
+    document.getElementById("loadingRow")?.remove();
+  }
+
+  function autoResizeInput() {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 160) + "px";
+  }
+
+  // 지금 토큰이 흘러들어오고 있는 assistant 말풍선 요소.
+  // 구간(section)이 바뀌면 이 안에 소제목을 하나 더 끼워 넣는다.
+  let activeBubble = null;
+  // 직전 토큰이 속했던 section 값. 바뀌는 순간을 감지하기 위한 변수.
+  let activeSection = null;
+  // section 이름 -> 그 구간에 지금까지 도착한 순수 원문(마크다운/수식 문법 포함).
+  // 스트리밍 중엔 이 값을 계속 이어붙이기만 하고, 구간이 끝나야 이 값 전체를
+  // marked.js/KaTeX로 한 번에 재렌더링한다 (완성되지 않은 문법 때문에
+  // 스트리밍 도중 렌더링을 시도하면 화면이 깜빡이거나 잘못 그려질 수 있어서다).
+  let sectionRawText = {};
+  // section 이름 -> 그 구간의 토큰이 실제로 쌓이고 있는 텍스트 노드(DOM 참조).
+  // "말풍선의 마지막 자식"이라는 위치로 찾지 않고 노드 자체를 직접 기억해두는 이유:
+  // appendSources()가 텍스트 노드 뒤에 출처 블록을 추가하면, 더 이상 텍스트 노드가
+  // 말풍선의 마지막 자식이 아니게 되기 때문이다. 위치가 아니라 참조로 추적해야
+  // 어떤 순서로 이벤트가 와도 정확한 노드를 찾아 교체할 수 있다.
+  let sectionTextNode = {};
+
+  function ensureActiveBubble() {
+    // 첫 토큰이 도착한 시점에만 실제로 말풍선을 새로 만든다.
+    // 그 전까지는 로딩 표시가 그 자리를 대신하고 있다.
+    if (activeBubble) return activeBubble;
+
+    removeLoading();
+    const row = appendMessage("assistant", ""); // 빈 말풍선으로 시작
+    activeBubble = row.querySelector(".msg-bubble");
+    activeBubble.textContent = ""; // appendMessage가 넣은 placeholder 제거
+    return activeBubble;
+  }
+
+  function appendToken(sectionKey, sectionLabel, text) {
+    const bubble = ensureActiveBubble();
+
+    // 이전 토큰과 다른 구간(section)으로 넘어왔다면, 소제목을 새로 삽입하기 전에
+    // 직전 구간이 있었다면 그 구간을 먼저 마크다운/수식으로 재렌더링해 마무리한다.
+    if (sectionKey !== activeSection) {
+      if (activeSection) renderSection(activeSection);
+
+      const label = document.createElement("span");
+      label.className = "section-label";
+      label.textContent = sectionLabel;
+      bubble.appendChild(label);
+
+      // 이 구간 전용 텍스트 노드를 새로 만들고 참조를 기억해둔다.
+      const textNode = document.createTextNode("");
+      bubble.appendChild(textNode);
+      sectionTextNode[sectionKey] = textNode;
+
+      activeSection = sectionKey;
+    }
+
+    // 원문(마크다운/수식 문법이 그대로 담긴 순수 텍스트)을 구간별로 누적해둔다.
+    sectionRawText[sectionKey] = (sectionRawText[sectionKey] || "") + text;
+
+    // 화면에는 지금까지처럼 평문 그대로 이어붙여, 실시간 타이핑 효과를 유지한다.
+    // "말풍선의 마지막 자식"이 아니라, 기억해둔 이 구간의 텍스트 노드에 직접 쓴다.
+    const textNode = sectionTextNode[sectionKey];
+    if (textNode) {
+      textNode.textContent += text;
+    } else {
+      const newNode = document.createTextNode(text);
+      bubble.appendChild(newNode);
+      sectionTextNode[sectionKey] = newNode;
+    }
+
+    threadEl.scrollTop = threadEl.scrollHeight;
+  }
+
+  function renderSection(sectionKey) {
+    // 해당 구간의 누적 원문을 마크다운 -> HTML -> 정제 -> 수식 순으로 처리해
+    // 지금까지 평문으로 보여주던 텍스트 노드를 완성된 렌더링 결과로 교체한다.
+    // sources-block이 이 텍스트 노드 뒤에 이미 추가되어 있어도, 노드 참조로
+    // 직접 찾아서 교체하므로 위치와 무관하게 정확히 동작한다.
+    const raw = sectionRawText[sectionKey];
+    const textNode = sectionTextNode[sectionKey];
+    if (!raw || !textNode || !textNode.parentNode) return;
+
+    // [수정] 1) 마크다운 파싱 전, 수식 구간을 자리표시자로 임시 치환해 보호한다.
+    // marked.parse()는 백슬래시(\)를 이스케이프 문자로 해석하기 때문에, 보호 없이
+    // 그대로 넘기면 "\%" -> "%"처럼 LaTeX 명령어가 훼손된다. LaTeX에서 이스케이프
+    // 안 된 "%"는 "주석 시작"으로 해석되어, 그 뒤 수식 전체가 사라지는 문제로 이어진다.
+    // 겹따옴표($$...$$)를 먼저 보호한 뒤, 남은 홑따옴표($...$, 인라인 수식)를 보호한다.
+    // (겹따옴표를 먼저 처리해야, 그 안의 $ 문자가 홑따옴표 정규식에 잘못 걸리지 않는다.)
+    const mathBlocks = [];
+    let protectedRaw = raw.replace(/\$\$[\s\S]*?\$\$/g, (match) => {
+      const placeholder = `@@MATH_BLOCK_${mathBlocks.length}@@`;
+      mathBlocks.push(match);
+      return placeholder;
+    });
+    protectedRaw = protectedRaw.replace(/\$([^\$\n]+?)\$/g, (match) => {
+      const placeholder = `@@MATH_BLOCK_${mathBlocks.length}@@`;
+      mathBlocks.push(match);
+      return placeholder;
+    });
+
+    let html = marked.parse(protectedRaw);           // 2) 마크다운 -> HTML (수식은 자리표시자 상태라 안전)
+
+    // [수정] 3) 자리표시자를 원래 수식 원문 그대로 복원한다.
+    mathBlocks.forEach((block, i) => {
+      html = html.replace(`@@MATH_BLOCK_${i}@@`, block);
+    });
+
+    const clean = DOMPurify.sanitize(html);           // 4) 정제 (안전장치)
+
+    const container = document.createElement("div");
+    container.className = "rendered-content";
+    container.innerHTML = clean;                       // 5) 정제된 결과만 삽입
+
+    textNode.parentNode.replaceChild(container, textNode);
+    sectionTextNode[sectionKey] = null;                // 렌더링 완료, 재사용 방지
+
+    // 6) 삽입된 실제 DOM을 순회하며 수식 구간을 실제 수식으로 변환한다.
+    // [수정] 인라인 수식(홑따옴표 $...$)도 함께 인식하도록 delimiters에 추가.
+    if (window.renderMathInElement) {
+      renderMathInElement(container, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },   // 추가 — 인라인 수식
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true },
+        ],
+        throwOnError: false,
+      });
+    }
+
+    threadEl.scrollTop = threadEl.scrollHeight;
+  }
+
+  function appendSources(sectionKey, items) {
+    // 출처는 타이핑되는 텍스트가 아니라, 답변에 딸린 구조화된 메타데이터다.
+    // 그래서 appendToken처럼 문자열을 이어붙이지 않고, 별도의 목록 블록으로 렌더링한다.
+    // generate/summarize 노드가 끝난 직후에 도착하므로, 해당 section의 답변
+    // 텍스트 바로 뒤에 자연스럽게 붙는다.
+    if (!items || items.length === 0) return;
+
+    const bubble = ensureActiveBubble();
+
+    const block = document.createElement("div");
+    block.className = "sources-block";
+
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "sources-eyebrow";
+    eyebrow.textContent = "출처";
+    block.appendChild(eyebrow);
+
+    const list = document.createElement("ul");
+    list.className = "sources-list";
+
+    for (const item of items) {
+      const li = document.createElement("li");
+      if (item.url) {
+        // news_agent 등, 링크가 있는 출처 (기사 제목 + 원문 링크)
+        const a = document.createElement("a");
+        a.href = item.url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = item.title || item.url;
+        li.appendChild(a);
+      } else if (item.page !== undefined) {
+        // rag_agent, 페이지 번호가 있는 출처 (PDF 등 문서 근거)
+        li.textContent = `${item.page} 페이지`;
+      } else if (item.title) {
+        li.textContent = item.title;
+      }
+      list.appendChild(li);
+    }
+
+    block.appendChild(list);
+    bubble.appendChild(block);
+
+    threadEl.scrollTop = threadEl.scrollHeight;
+  }
+
+  function parseSSEBuffer(buffer) {
+    // SSE 프레임은 "\n\n"으로 구분된다. 마지막 조각은 아직 완성되지 않았을 수
+    // 있으므로 버퍼에 남겨두고, 완성된 프레임들만 파싱해서 반환한다.
+    const frames = buffer.split("\n\n");
+    const remainder = frames.pop();
+
+    const events = [];
+    for (const frame of frames) {
+      const lines = frame.split("\n");
+      let eventName = "message";
+      let dataStr = "";
+      for (const line of lines) {
+        if (line.startsWith("event:")) eventName = line.slice(6).trim();
+        if (line.startsWith("data:")) dataStr = line.slice(5).trim();
+      }
+      if (dataStr) {
+        try {
+          events.push({ event: eventName, data: JSON.parse(dataStr) });
+        } catch {
+          // 파싱 실패한 프레임은 조용히 무시한다 (스트림 중간의 불완전한 조각일 수 있음).
+        }
+      }
+    }
+    return { events, remainder };
+  }
+
+  async function sendMessage(question) {
+    isLoading = true;
+    sendBtn.disabled = true;
+    input.disabled = true;
+    activeBubble = null;
+    activeSection = null;
+    sectionRawText = {};
+    sectionTextNode = {};
+    let serverErrorShown = false; // "error" 이벤트를 이미 화면에 보여줬는지 추적
+    appendLoading();
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, thread_id: threadId }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`서버 오류 (HTTP ${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const { events, remainder } = parseSSEBuffer(buffer);
+        buffer = remainder;
+
+        for (const { event, data } of events) {
+          if (event === "status") {
+            // 아직 첫 토큰이 오기 전이라면 로딩 라벨을 갱신하고,
+            // 이미 타이핑이 시작된 뒤라면 이 이벤트는 화면에 반영하지 않는다.
+            if (!activeBubble) updateLoadingLabel(data.label);
+          } else if (event === "token") {
+            appendToken(data.section, data.section_label, data.text);
+          } else if (event === "sources") {
+            // generate/summarize 완료 시점에 한 번 도착하는 출처 목록.
+            // 텍스트 스트림과는 별개의 채널이라, 순서상 자연스럽게
+            // 해당 구간 답변 텍스트 바로 뒤에 붙는다.
+            appendSources(data.section, data.items);
+          } else if (event === "error") {
+            // 서버 쪽 그래프 실행 중 예외가 발생한 경우 (recursion limit 초과,
+            // LLM/검색 API 오류 등). 지금까지 "응답 없음"으로만 보이던 문제들이
+            // 이 분기 덕분에 실제 에러 메시지로 화면에 나타나게 된다.
+            removeLoading();
+            appendMessage("error", `서버 오류: ${data.error}`);
+            serverErrorShown = true;
+          } else if (event === "done") {
+            // 스트림이 끝났으므로, 아직 평문으로 남아있는 마지막 구간을
+            // 마크다운/수식으로 재렌더링해 마무리한다.
+            if (activeSection) renderSection(activeSection);
+
+            if (data.thread_id) {
+              threadId = data.thread_id;
+              sessionLabel.textContent = `#${threadId.slice(0, 8)}`;
+              statusDot.classList.add("active");
+            }
+          }
+        }
+      }
+
+      // 서버가 에러 이벤트 없이 끝났는데 토큰이 하나도 없었다면 대비.
+      // (이미 "error" 이벤트로 메시지를 보여준 경우에는 중복 표시하지 않는다.)
+      if (!activeBubble && !serverErrorShown) {
+        removeLoading();
+        appendMessage("error", "서버로부터 응답을 받지 못했습니다.");
+      }
+    } catch (err) {
+      removeLoading();
+      appendMessage("error", `답변을 가져오지 못했습니다. (${err.message})`);
+    } finally {
+      isLoading = false;
+      sendBtn.disabled = false;
+      input.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    if (!question || isLoading) return;
+
+    // 서버 응답을 기다리지 않고, 사용자 메시지를 먼저 화면에 반영한다 (optimistic UI).
+    appendMessage("user", question);
+    input.value = "";
+    autoResizeInput();
+
+    sendMessage(question);
+  });
+
+  // Enter로 전송, Shift+Enter로 줄바꿈.
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  input.addEventListener("input", autoResizeInput);
+  input.focus();
+</script>
+</body>
+</html>

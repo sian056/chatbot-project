@@ -1,10 +1,12 @@
-from langgraph.graph import StateGraph, START
+import time, datetime
+
+from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from src.agents.supervisor import SupervisorState, supervisor
-from src.agents.rag_agent import rag_agent
-from src.agents.news_agent import news_agent
-from src.model import build_llm
+from src.agents.rag_agent import rag_subgraph
+from src.agents.news_agent import news_subgraph
+from src.utils import print_messages
 
 QUERY_SYSTEM_PROMPT = (
     "당신은 대화 이력을 참고하여 사용자의 가장 최근 메시지를"
@@ -15,11 +17,22 @@ QUERY_SYSTEM_PROMPT = (
     "(예시: '그거 반댓말은?' -> '인플레이션의 반댓말인 디플레이션이란 무엇인가?')"
     "- 질문의 의도를 바꾸지 말고, 검색에 사용하기 좋은 형태로만 다듬으세요."
 )
+
+#rewrite_llm = build_llm(name="Prepare Query", provider="ollama")
+
 def prepare_query(state:SupervisorState) -> dict:
-    latest_user_message = state["message"][-1].content
+    print(f"==== [DEBUG][SAVE ORIGINAL QUERY] ====")
+    print_messages("prepare_query 진입", state["messages"])
+    latest_user_message = state["messages"][-1].content
+
+    return {"query": latest_user_message, "rag_agent_calls": 0, "news_agent_calls":0}
+
+def rewrite_query(state:SupervisorState) -> dict:
+    st_time = time.time()
+    latest_user_message = state["messages"][-1].content
 
     # 마지막 메시지 제외 이전 대화 이력을 프롬프트에 포함
-    history = state["message"][:-1]
+    history = state["messages"][:-1]
 
     # system_message= SystemMessage(
     #     content=QUERY_SYSTEM_PROMPT
@@ -31,21 +44,28 @@ def prepare_query(state:SupervisorState) -> dict:
         {"role": "user", "content": f"다시 써야 할 최근 메시지: {latest_user_message}"}
     ]
 
-    rewrite_llm = build_llm()
     rewritten = rewrite_llm.invoke(rewrite_prompt)
+    print(f"\n[PREPARE QUERY] Rewritten query: {rewritten.content}")
 
+    cost_time = str(datetime.timedelta(seconds=time.time()-st_time))
+    print(f"[TIME] Prepare_query : {cost_time}\n")
     return {"current_turn_query": rewritten.content}
+
 
 def build_multi_agent_graph():
     builder = StateGraph(SupervisorState)
 
     builder.add_node("prepare_query", prepare_query)
     builder.add_node("supervisor", supervisor)
-    builder.add_node("rag_agent", rag_agent)
-    builder.add_node("news_agent", news_agent)
+    builder.add_node("rag_agent", rag_subgraph)    #subgraph
+    builder.add_node("news_agent", news_subgraph)   #subgraph
 
     # 그래프 진입점
     builder.add_edge(START, "prepare_query")
     builder.add_edge("prepare_query", "supervisor")
+
+    builder.add_edge("rag_agent", "supervisor")
+    #builder.add_edge("news_agent", END) # 임시로 한번만 테스트 하기 위해
+    builder.add_edge("news_agent", "supervisor")
 
     return builder.compile(checkpointer=MemorySaver())

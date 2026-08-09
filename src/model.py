@@ -6,10 +6,9 @@ from src.settings import settings
 #load_dotenv()
 
 def build_embedding():
-    print("[INFO] ---- Build Embedding model ---- ")
     # Embedding model
     provider = settings.embedding_provider.lower()
-    print(f"[INFO] Embedding Provider: {provider}")
+    print(f"[INFO] Build Embedding : {provider}")
     if settings.embedding_provider == "google":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
         embeddings = GoogleGenerativeAIEmbeddings(
@@ -26,10 +25,10 @@ def build_embedding():
     return embeddings
 
 
-def build_llm():
-    print("[INFO] ---- Build LLM ---- ")
-    provider = settings.llm_provider.lower()
-    print(f"[INFO] LLM Provider: {provider}")
+def build_llm(name, provider):
+    provider = provider.lower()
+    print(f"[INFO] Build LLM for {name}: {provider}")
+
     if provider == "ollama":
         from langchain_ollama import ChatOllama
         return ChatOllama(
@@ -42,9 +41,23 @@ def build_llm():
         google_api_key=settings.google_api_key,
     )
 
+def build_supervisor_llm():
+    """Supervisor는 구조화된 출력이 필요하므로 별도 설정"""
+    print(f"[INFO] Build Supervisor LLM: google {settings.google_model}")
+    # from langchain_ollama import ChatOllama
+    # return ChatOllama(
+    #     model=settings.ollama_model,
+    #     base_url=settings.ollama_base_url,
+    #     format="json",
+    # )
+    return ChatGoogleGenerativeAI(
+        model=settings.google_model,
+        google_api_key=settings.google_api_key,
+    )
+
+
 def build_judge_llm():
-    print("[INFO] ---- Build Judge LLM ---- ")
-    print(f"[INFO] LLM Judge Provider: {settings.judge_model}")
+    print(f"[INFO] Build Judge LLM: {settings.judge_model}")
     return ChatGoogleGenerativeAI(
             model=settings.judge_model,
             google_api_key=settings.google_api_key,

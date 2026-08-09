@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 
 from langchain_chroma import Chroma
 
@@ -7,10 +6,14 @@ from src.settings import settings
 from src.dataset.data_loader import chunking, load_dir, load_github, load_pdf
 from src.model import build_embedding
 
+# Embedding model
+embeddings = build_embedding()
+
 #load_dotenv()
+
 def initial_indexing():
 
-    print("[INFO] ---- 새 인덱스 생성 시작 ---- ")
+    print("[INFO] Initialize Indexing")
     embeddings = build_embedding()
 
     if settings.doc_source == "dir":
@@ -41,7 +44,7 @@ def initial_indexing():
     )
 
     print("[INFO] ... Vector DB 저장 완료. ./chroma_db 폴더에 SQLite 인덱스가 생성되었습니다.")
-    print("[INFO] ---- Finish Initialize Indexing ---- ")
+    print("[INFO] Finish Indexing")
 
     return vectorstore
 
@@ -91,10 +94,9 @@ def add_indexing():
 
 
 def load_vector_store():
-    print(f"[INFO] ---- 기존 인덱스 재로드 시작 ---- ")
-    print(f"Documents Source from : {settings.doc_source}")
-    # Embedding model
-    embeddings = build_embedding()
+    print(f"[INFO] ... Loading Index ...")
+    print(f"[INFO] ... Documents from : {settings.doc_source}")
+    
     collection_name = settings.collection_name+settings.doc_source
     #print(vectDB_name)
     # ====== Vector DB 존재 확인하고 Indexing 새로 하거나, 기존 Vector DB 로드 ======
