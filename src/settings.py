@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     # md_dir_path: str = str(BASE_DIR / "sian-til") #"./sian-til" # BASE_DIR가 pathlib.Path 객체라서 / 연산자로 경로를 이어붙이기 가능
 
     # # TIL : github md 파일 사용시
-    # github_repo: str = "sian35/KTB4-Sian-TIL"
+    # github_repo: str = "sian056/KTB4-Sian-TIL"
     # github_token: str | None = None
 
     # ── 설정 로드 방식 지정 ──

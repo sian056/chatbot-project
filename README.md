@@ -91,7 +91,7 @@ chatbot-project/
 ### 2. 초기 설정
 #### 1) 저장소 클론
 ```bash
-git clone https://github.com/sian35/chatbot-project.git
+git clone https://github.com/sian056/chatbot-project.git
 
 cd chatbot-project  # 프로젝트 폴더 진입
 ```

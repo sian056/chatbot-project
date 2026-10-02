@@ -52,7 +52,7 @@ def preprocess_pdf(docs):
 def load_pdf():
     from langchain_community.document_loaders import PyPDFLoader
     if not os.path.exists(settings.pdf_path):
-        urllib.request.urlretrieve("https://raw.githubusercontent.com/sian35/chatbot-project/main/2026_%EA%B2%BD%EC%A0%9C%EA%B8%88%EC%9C%B5%EC%9A%A9%EC%96%B4_800%EC%84%A0.pdf", filename=settings.pdf_path)
+        urllib.request.urlretrieve("https://raw.githubusercontent.com/sian056/chatbot-project/main/2026_%EA%B2%BD%EC%A0%9C%EA%B8%88%EC%9C%B5%EC%9A%A9%EC%96%B4_800%EC%84%A0.pdf", filename=settings.pdf_path)
         print(f"[INFO] Successfully downloaded {settings.pdf_path}")
 
     pdf_loader = PyPDFLoader(settings.pdf_path)
